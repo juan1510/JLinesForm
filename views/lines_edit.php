@@ -1,6 +1,6 @@
 <?php
     /*
-     * Lineas Renderizadas segun opciones del Widget
+     * Lineas Renderizadas para modo edit segun opciones del Widget
      */
      /* @var $this JLinesForm */
 ?>
@@ -16,21 +16,16 @@
                  ),	
         ));     
     ?>
-    
-    <table>
-        <tr>
-            <?php $this->renderElementsPreCopy($form);?>
-        </tr>
-    </table>
     <table class="templateFrame table table-bordered" cellspacing="0">
               <thead>
                     <?php $this->renderHeaders();?>
              </thead>
-             <tfoot >
+             <tfoot>
                    <tr>
-                        <td colspan='<?php $this->getCountColspan();?>'>
+                       <td colspan='<?php echo $this->getCountColspan();?>'>
                             <div id='<?php echo $this->htmlAddOptions['id'];?>' class="add"></div>
-                               <textarea class="template" rows="0" cols="0" style="display:none;">
+                            <?php echo $this->getButtonAddLine();?>
+                            <textarea class="template" style="display:none;">
                                         <tr class="templateContent">
                                             <td>
                                                 <span id='linea_<?php echo '{0}';?>'></span>                                                                        
