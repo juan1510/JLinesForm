@@ -28,8 +28,8 @@
              </thead>
              <tfoot >
                    <tr>
-                        <td colspan='<?php $this->getCountColspan();?>'>
-                            <div id='<?php echo $this->htmlAddOptions['id'];?>' class="add"></div>
+                        <td colspan='<?php echo $this->getCountColspan();?>'>
+                            <div id='<?php echo $this->_idAdd;?>' class="add"></div>
                                <textarea class="template" rows="0" cols="0" style="display:none;">
                                         <tr class="templateContent">
                                             <td>
@@ -39,6 +39,10 @@
                                                 <span id='articulo_<?php echo '{0}';?>'></span>
                                                 <?php echo CHtml::hiddenField('LineaNuevo[{0}][ARTICULO]',''); ?>
                                             </td>
+                                            <td>
+                                                <span id='descripcion_<?php echo '{0}';?>'></span>
+                                                <?php echo CHtml::hiddenField('LineaNuevo[{0}][DESCRIPCION]',''); ?>
+                                            </td>                                            
                                             <td>
                                                 <span id='descripcion_<?php echo '{0}';?>'></span>
                                                 <?php echo CHtml::hiddenField('LineaNuevo[{0}][DESCRIPCION]',''); ?>

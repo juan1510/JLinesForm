@@ -44,6 +44,11 @@ class JLinesForm extends CWidget{
          */
         private $_assets ;
         /**
+         * Id que contendra la class .add
+         * @var string  $_idAdd
+         */
+        public $_idAdd;
+        /**
          * Modelo para las Lineas
          *
          * @var CModel $model
@@ -93,7 +98,9 @@ class JLinesForm extends CWidget{
          * Inicializar Widget
          */
         public function init() {
-            if(!isset($this->htmlAddOptions['id']))
+            if(isset($this->htmlAddOptions['id']))
+                    $this->_idAdd = $this->htmlAddOptions['id'];
+            else
                       throw new Exception('Se debe definir un ID para el boton');
             $this->registerScripts();
             
@@ -117,18 +124,22 @@ class JLinesForm extends CWidget{
             
             $js->registerScript($this->htmlAddOptions['id'],'
                 $(document).ready(function(){
-                    $(".clonar").click(funcion(){
+                    $("#lineas-form_es_").addClass("alert alert-block alert-error");
+                    $(".clonar").click(function(){
                         $("#'.$this->htmlAddOptions['id'].'").click();
                     });
+                    $(".eliminaLinea").live("click",function(){
+                        $("#remover_"+$(this).attr("name")).click();
+                    });
                 });
-            ');
+            ',CClientScript::POS_HEAD);
         }
         /*
          * Metodo para retornar el contador
          * que debe ir en el count de el footer de la tabla 
          */
         public function getCountColspan(){
-            return count($this->elementsCopy);
+            return count($this->elementsCopy)+1;
         }
         /**
          * Metodo para retornar un Boton de Nuevo en Lineas
@@ -238,6 +249,27 @@ class JLinesForm extends CWidget{
                 }
             }
             
+        }
+        /**
+         * Este metodo retornara la validacion a usar
+         * para las lineas, si las validateTabular, o la
+         * validate en caso de modal y elementsPreCopy
+         * @param CModel $model 
+         * @param boolean $editInline define el uso de linea
+         * @static
+         */
+        public static function perfomAjaxValidate($model,$editInline = true){
+            if($editInline){
+                if(isset($_POST['ajax']) && $_POST['ajax']==='lineas-form'){
+			echo CActiveForm::validateTabular(array($model));
+			Yii::app()->end();
+                }
+            }else{
+                if(isset($_POST['ajax']) && $_POST['ajax']==='lineas-form'){
+			echo CActiveForm::validate($model);
+			Yii::app()->end();
+                }
+            }
         }
         /**
          * Muestra los <th> de las tablas de las lineas
