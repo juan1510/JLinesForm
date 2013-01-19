@@ -3,35 +3,23 @@
      * Lineas Renderizadas segun opciones del Widget
      */
      /* @var $this JLinesForm */
+   
 ?>
-<div class="form">
-    <?php 
-        $form=$this->beginWidget('bootstrap.widgets.TbActiveForm', array(
-                'id'=>'lineas-form',
-                'type'=>'inline',
-                'inlineErrors'=>false,
-                'enableAjaxValidation'=>true,
-                'clientOptions'=>array(
-                      'validateOnSubmit'=>true,
-                 ),	
-        ));     
-    ?>
-    
-    <table>
-        <tr>
-            <?php $this->renderElementsPreCopy($form);?>
-        </tr>
-    </table>
-    <table class="templateFrame table table-bordered" cellspacing="0">
-              <thead>
-                    <?php $this->renderHeaders();?>
-             </thead>
-             <tfoot >
+
+<table>
+     <tr>
+         <?php $this->renderElementsPreCopy();?>
+     </tr>
+</table>
+<table class="templateFrame table table-bordered table table-hover table table-striped" cellspacing="0">
+             <?php $this->renderHeaders();?>
+             <tfoot style="display:none">
                    <tr>
-                        <td colspan='<?php echo $this->getCountColspan();?>'>
+                        <td>
                             <div id='<?php echo $this->_idAdd;?>' class="add"></div>
-                               <textarea class="template" rows="0" cols="0" style="display:none;">
+                               <textarea class="template" style="display:none;">
                                         <tr class="templateContent">
+                                            <?php $this->renderElementsTemplate();/*?>
                                             <td>
                                                 <span id='linea_<?php echo '{0}';?>'></span>                                                                        
                                             </td>
@@ -47,12 +35,12 @@
                                                 <span id='descripcion_<?php echo '{0}';?>'></span>
                                                 <?php echo CHtml::hiddenField('LineaNuevo[{0}][DESCRIPCION]',''); ?>
                                             </td>                                            
-                                            <td>
+                                            <td style="width: 77px;"> 
                                                  <span style="float: left"><?php $this->getButtonUpdateLine(); ?> </span>
                                                 <div class="remove" id ="remover_<?php echo '{0}';?>"></div>
                                                 <div style="float: left; margin-left: 5px;"><?php $this->getButtonDeleteLine(); ?> </div>
-                                                <?php CHtml::hiddenField("rowIndex_{0}","{0}",array('class'=>'rowIndex'))?>
-                                           </td>
+                                                <?php echo CHtml::hiddenField("rowIndex_{0}","{0}",array('class'=>'rowIndex'))?>
+                                           </td> */?>
                                         </tr>
                                  </textarea>
                           </td>
@@ -112,7 +100,7 @@
                                         <td>
                                                 <?php echo '<span id="totalU_'.$i.'">'.$linea->ESTADO.'</span>'; ?>
                                         </td>
-                                        <td>                                     
+                                        <td style="width: 77px;">                                      
                                                <div class="remove" id ="remover" style="float: left; margin-left: 5px;">
                                                           <?php $this->widget('bootstrap.widgets.TbButton', array(
                                                                          'buttonType'=>'button',
@@ -130,6 +118,4 @@
                            <?php echo CHtml::hiddenField('eliminar','' ); ?>
                   <?php endif; ?>
             </tbody>
-    </table>
-    <?php $this->endWidget(); ?>  
-</div><!-- form -->
+</table>
