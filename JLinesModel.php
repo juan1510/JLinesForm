@@ -15,34 +15,18 @@ class JLinesModel extends CFormModel{
      * @var array $attributes
      */
     private $attributes = array();
-    /** 
-     * Nombre del Modelo del que se esta obteniendo atributos
-     * @var string 
-     */
-    public $modelBase;
     /**
      * Reglas de Validacion del Modelo Base
      * @var array $rules
      */
     public $rules = array();
-    /**
-     * Labels que esten definidos en el modelo base
-     * @var array $rules
-     */
-    public $attributeLabels = array();
+    
     /**
      * Reglas de Validacion del Modelo Base
      * @return array 
      */
     public function rules(){
         return $this->rules;
-    }
-    /**
-     * Labels que esten definidos en el modelo base
-     * @return array 
-     */
-    public function attributeLabels(){
-        return $this->attributeLabels;
     }
 	
     /**
@@ -92,7 +76,7 @@ class JLinesModel extends CFormModel{
     public function __call($name, $arguments) {
         echo "Calling object method '$name' "
              . implode(', ', $arguments). "<br>";
-        if(class_exists($this->modelBase, false) &&  $this->$name instanceof $this->modelBase)
+        if(class_exists('Closure', false) &&  $this->$name instanceof Closure)
 			return call_user_func_array($this->$name, $parameters);
         
         throw new CException(Yii::t('yii','{class} and its behaviors do not have a method or closure named "{name}".',

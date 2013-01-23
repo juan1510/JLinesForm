@@ -3,8 +3,6 @@
      * Lineas Renderizadas para modo edit segun opciones del Widget
      */
      /* @var $this JLinesForm */
-
-    echo $this->form->errorSummary($this->model); 
 ?>
 <table class="templateFrame table table-bordered table table-hover table table-striped" cellspacing="0">
        <?php $this->renderHeaders();?>

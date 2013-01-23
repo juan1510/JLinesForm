@@ -7,8 +7,8 @@
  *
  * Usado de Yii-Playground - Dynamics Row pero mejorado el uso
  * @link http://www.eha.ee/labs/yiiplay/index.php/en/site/extension?view=dynamicrows
- * 
- * $this->widget('ext.JLinesForm.JLinesForm',array(
+ * @example
+   $this->widget('ext.JLinesForm.JLinesForm',array(
             'model'=>$model,
             'htmlAddOptions'=>array('id'=>'agregar','disabled'=>true,'style'=>'margin-top: 5px;','tabindex'=>'10')
     ));
@@ -16,7 +16,6 @@
  * @copyright 2013 - Juan David Rodriguez
  * @license New BSD License
  * @category User Interface
- * @version 0.1
  */
 class JLinesForm extends CWidget{
         /**
@@ -40,7 +39,7 @@ class JLinesForm extends CWidget{
         public $numLines = 0;
         /**
          * Url de la carpeta asstes dentro de extensions
-         *
+         * @access private
          * @var string $_assets
          */
         private $_assets ;
@@ -71,14 +70,14 @@ class JLinesForm extends CWidget{
         public $htmlAddOptions = array('id'=>'add','style'=>'margin-top: 5px;');
         /**
          * Opciones HTML para el boton de Actualizar linea
-         * 
+         * @access private
          * @var array  $htmlUpdateOptions
          * @access protected
          */
         private $htmlUpdateOptions = array('class'=>'edit','name'=>'{0}','id'=>'edit_{0}');
         /**
          * Opciones HTML para el boton de Eliminar linea
-         * 
+         * @access private
          * @var array  $htmlDeleteOptions
          * @access protected
          */
@@ -88,12 +87,6 @@ class JLinesForm extends CWidget{
          * @var array $elementsPreCopy
          */
         public $elementsPreCopy = array();
-        /**
-         * Elementos enviados metiante post que estan validados, 
-         * y se vana mostrar en la tabla con sus respectivos errores
-         * @var array $elementsPost
-         */
-        public $elementsPost = array();
         /**
          * Elementos que van en la tabla de lineas
          * @var array $elementsCopy
@@ -128,6 +121,7 @@ class JLinesForm extends CWidget{
          * Este metodo registrara los js 
          * Nesesarios a usar y algun codigo extra
          * que se necesite con respecto a los botones
+         * @access private
          */
         private function registerScripts(){
             
@@ -139,7 +133,7 @@ class JLinesForm extends CWidget{
             $js->registerScriptFile($this->_assets .'/js/jquery.format.js');
             $js->registerScriptFile($this->_assets .'/js/template.js');
             
-            $js->registerScript($this->htmlAddOptions['id'],'
+            $js->registerScript($this->htmlAddOptions['id'],' 
                 $(document).ready(function(){
                     $(".clonar").click(function(){
                         $("#'.$this->htmlAddOptions['id'].'").click();
@@ -147,8 +141,126 @@ class JLinesForm extends CWidget{
                     $(".eliminaLinea").live("click",function(){
                         $("#remover_"+$(this).attr("name")).click();
                     });
-                });
-            ',CClientScript::POS_HEAD);
+                });                
+               '.$this->scriptAfterValidate()
+           ,CClientScript::POS_HEAD);
+        }
+        /**
+         * Metodo para retornar el script a usar
+         * para la validacion de las lineas, 
+         * para que funcione correctamente
+         * se debe declarar en el formulario
+         * 'clientOptions'=>array(
+                'validateOnSubmit'=>true,
+                'afterValidate'=>new CJavaScriptExpression('afterValidate'),
+           ),
+         * 
+         * @return string  
+         */
+        private function scriptAfterValidate(){
+                return '
+                    function in_array(name,data){
+                        var a = false;
+                        $.each(data, function(id, errors){
+                            if(name === id){
+                                a = true
+                                return false;
+                            }
+                        });
+                        return a;
+                    }
+                    function in_data(name,data){
+                        var a = false;
+                        $.each(data, function(id, errors){
+                            if(name === id.split("_")[0]){
+                                a = true
+                                return false;
+                            }
+                        });
+                        return a;
+                    }
+                    function afterValidate(form, json, hasError){
+                        var send = hasError;
+                        var attributes = '.CJavaScript::encode($this->model->attributes).';
+                        $.ajax({
+                            type:"POST",
+                            url:'.CJavaScript::encode($this->getController()->createUrl('')).',
+                            data: $("#'.$this->form->id.'").serialize()+"&jlines='.$this->form->id.'",
+                            dataType : "json",
+                            success: function(data){
+                                if(data != null){
+                                    $.each(data, function(id, errors){
+                                        $("#"+id).parents(".row").addClass("error");
+                                        $.each(errors,function(index,error){
+                                            $("#"+id+"_em").text(error);
+                                            return false;
+                                        });
+                                        $("#"+id+"_em").show();
+                                        $.each(attributes,function(name,value){
+                                            var attribute = id.split("_")[0]+"_"+id.split("_")[1]+"_"+name
+                                            if(!in_array(attribute,data)){
+                                                $("#"+attribute).parents(".row").addClass("success");
+                                                $("#"+attribute+"_em").hide();
+                                                $("#"+attribute+"_em").text("");
+                                            }
+                                        });
+                                    });
+                                    send = false;
+                                }else
+                                    $(".row").addClass("success");
+                                 
+                            },
+                       });
+                       if(json != null){
+                           $.each(json, function(id,errors){
+                                if(id.split("_")[0] === "JLinesModel" && in_data("'.get_class($this->model).'",json) == false)
+                                     send = true;
+                                else
+                                     send = false;
+                           });
+                       } 
+                       $.ajax({
+                            type:"POST",
+                            url:'.CJavaScript::encode($this->getController()->createUrl('')).',
+                            data: $("#'.$this->form->id.'").serialize()+"&jlines='.$this->form->id.'",
+                            dataType : "json",
+                            success: function(data){
+                                if(data != null){
+                                    $.each(data, function(id, errors){
+                                        $("#"+id).parents(".row").addClass("error");
+                                        $.each(errors,function(index,error){
+                                            $("#"+id+"_em").text(error);
+                                            return false;
+                                        });
+                                        $("#"+id+"_em").show();
+                                        $.each(attributes,function(name,value){
+                                            var attribute = id.split("_")[0]+"_"+id.split("_")[1]+"_"+name
+                                            if(!in_array(attribute,data)){
+                                                $("#"+attribute).parents(".row").addClass("success");
+                                                $("#"+attribute+"_em").hide();
+                                                $("#"+attribute+"_em").text("");
+                                            }
+                                        });
+                                    });
+                                    send = false;
+                                }else
+                                    $(".row").addClass("success");
+                                 
+                            },
+                       });
+                       if(json != null){
+                           $.each(json, function(id,errors){
+                                if(id.split("_")[0] === "JLinesModel" && in_data("'.get_class($this->model).'",json) == false)
+                                     send = true;
+                                else
+                                     send = false;
+                           });
+                       }
+                       
+                       return send;
+                    }
+                    
+                ';
         }
         /*
          * Metodo para retornar el contador
@@ -166,6 +278,7 @@ class JLinesForm extends CWidget{
                     $this->htmlAddOptions['class'] += ' clonar';                
                 else
                     $this->htmlAddOptions['class'] = 'clonar';
+                
                 if(isset($this->htmlAddOptions['id']))
                     unset($this->htmlAddOptions['id']);
                 return $this->widget('bootstrap.widgets.TbButton', array(
@@ -211,51 +324,60 @@ class JLinesForm extends CWidget{
             
         }
         /**
-         * Tipos de elementos a usar con items
-         * @return array  
-         */
-        public static function getValidTypesItems(){
-           return self::$VALIDTYPESITEMS;
-        }
-        /**
          * Este metodo retornara la validacion a usar
          * para las lineas, si las validateTabular, o la
          * validate en caso de modal y elementsPreCopy
          * @param CModel $model 
          * @param string $idForm 
-         * @param array $elementsPost Elementos que se esten validando por envio del form 
-         * @param boolean $editInline define el uso de linea
          * @static
          */
-        public static function validate($model,$idForm,$elementsPost,$editInline = true){
-            
+        public static function validate($model,$idForm){
+             //array indexado que se escribira en CJSON::encode()
+             $json = array();
              // array que tendra los modelos a ser validados
              $models=array();
-             // Model Clonado
-             $JLinesModel = new JLinesModel;
-             $JLinesModel->modelBase = get_class($model);
-             $JLinesModel->rules = $model->rules();
-             $JLinesModel->attributeLabels = $model->attributeLabels();
-             if($editInline){
+             
+             if(isset($_POST[get_class($model)])){
+                   foreach($_POST[get_class($model)] as $i=>$data){
+                           $models[$i]=$model;
+                           $models[$i]['PRECIO_UNITARIO']=0;
+                           $models[$i]['PORC_DESCUENTO']=0;
+                           $models[$i]['MONTO_DESCUENTO']=0;
+                           $models[$i]['PORC_IMPUESTO']=0;
+                           $models[$i]['VALOR_IMPUESTO']=0;
+                           $models[$i]['TIPO_PRECIO']=130;
+                           
+                   }
+             }
+             //verifica que haya una peticion ajax
+             if(isset($_POST['ajax']) && $_POST['ajax']===$idForm){
+                 //Escribimos lo errores de validacion en nuestro array $json
+                   if(isset($_POST[get_class($model)])){
+                         foreach(CJSON::decode(CActiveForm::validateTabular($models)) as $index=>$value)
+                                 $json[$index]=$value;
+                   }
+                   if(isset($_POST['JLinesModel'])){
+                       // Instanciamos el Model Clonado y asignamos propiedades
+                         $JLinesModel = new JLinesModel;
+                         $JLinesModel->rules = $model->rules();
+                       //asignamos lo valores del post al modelo
+                       foreach($_POST['JLinesModel'] as $name=>$value)
+                            $JLinesModel->$name = $value;
+                       //Escribimos lo errores de validacion en nuestro array $json
+                       foreach(CJSON::decode(CActiveForm::validate($JLinesModel)) as $index=>$value)
+                             $json[$index]=$value;
+                   }
+                   //Finalmente mostramos los errores de validacion
+                     echo CJSON::encode($json);
+                     Yii::app()->end();
+             }
+             if(isset($_POST['jlines']) && $_POST['jlines']===$idForm){
                  if(isset($_POST[get_class($model)])){
-                        foreach($_POST[get_class($model)] as $i=>$data){
-                            $models[$i]=$model;
-                        }
+                     foreach(CJSON::decode(CActiveForm::validateTabular($models)) as $index=>$value)
+                                 $json[$index]=$value;
                  }
-                 if(isset($_POST['ajax']) && $_POST['ajax']===$idForm){
-                        echo CActiveForm::validateTabular($models);
-                        Yii::app()->end();
-                 }
-                 
-             }else{
-                 if(isset($_POST['JLinesModel'])){
-                     foreach($_POST['JLinesModel'] as $i=>$data)
-                         $JLinesModel->$i = $_POST['JLinesModel'][$i];
-                 }
-                 if(isset($_POST['ajax']) && $_POST['ajax']===$idForm){
-			echo CActiveForm::validate($JLinesModel);
-                        Yii::app()->end();
-                }
+                 echo CJSON::encode($json);
+                 Yii::app()->end();
              }
             
         }
@@ -296,9 +418,6 @@ class JLinesForm extends CWidget{
             }
         }
         public function renderElementsSaved(){
-            
-        }
-        public function renderElemenstValidatedPost(){
             
         }
         /**
@@ -347,7 +466,7 @@ class JLinesForm extends CWidget{
          * Metodo para crear elemento ya sea del template 
          * de la tabla para el editInline true o para los elemetsPreCopy
          * 
-         * @access protected
+         * @access private
          * @param string $element
          * @param array $options
          * @param string $render que funcion la solicita default 'elementCopy'
@@ -357,11 +476,6 @@ class JLinesForm extends CWidget{
             $campo = '';
             $error = '';
             $JLinesModel = $render != 'elementTemplate' ? new JLinesModel : $this->model;
-            if($render != 'elementTemplate'){
-                $JLinesModel->modelBase = get_class($this->model);
-                $JLinesModel->rules = $this->model->rules();
-                $JLinesModel->attributeLabels = $this->model->attributeLabels();
-            }
             if(!isset($options['isModel']))
                    $options['isModel'] = true;
 
@@ -373,7 +487,7 @@ class JLinesForm extends CWidget{
              //Creamos los campos
             if($options['isModel'] && isset($options['type'])){
                 $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
-                $error = $render == 'elementTemplate' ? CHtml::error($this->model,'['.$this->numLines.']'.$element) : $this->form->error($JLinesModel,$element);
+                $error = $render == 'elementTemplate' ? '<div id="'.get_class($this->model).'_{'.$this->numLines.'}_'.$element.'_em" class="errorMessage" style="display:none"></div>' : $this->form->error($JLinesModel,$element);
                 //Validamos el tipo y mostramos
                 if(in_array($options['type'],self::$VALIDTYPES)){
                        $campo = $render == 'elementTemplate' ? $this->form->$options['type']($this->model,'[{'.$this->numLines.'}]'.$element,$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']);
