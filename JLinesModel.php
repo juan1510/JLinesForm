@@ -26,6 +26,14 @@ class JLinesModel extends CFormModel{
      * @return array 
      */
     public function rules(){
+        foreach($this->rules as $key=>$value){
+            foreach($value as $k=>$v){
+                if($v == 'required')
+                    unset($this->rules[$key]);
+                
+            }
+            
+        }
         return $this->rules;
     }
 	

@@ -134,6 +134,7 @@ class JLinesForm extends CWidget{
             $js->registerScriptFile($this->_assets .'/js/template.js');
             
             $js->registerScript($this->htmlAddOptions['id'],' 
+                var send = true;
                 $(document).ready(function(){
                     $(".clonar").click(function(){
                         $("#'.$this->htmlAddOptions['id'].'").click();
@@ -169,18 +170,7 @@ class JLinesForm extends CWidget{
                         });
                         return a;
                     }
-                    function in_data(name,data){
-                        var a = false;
-                        $.each(data, function(id, errors){
-                            if(name === id.split("_")[0]){
-                                a = true
-                                return false;
-                            }
-                        });
-                        return a;
-                    }
                     function afterValidate(form, json, hasError){
-                        var send = hasError;
                         var attributes = '.CJavaScript::encode($this->model->attributes).';
                         $.ajax({
                             type:"POST",
@@ -188,7 +178,7 @@ class JLinesForm extends CWidget{
                             data: $("#'.$this->form->id.'").serialize()+"&jlines='.$this->form->id.'",
                             dataType : "json",
                             success: function(data){
-                                if(data != null){
+                                if(data != ""){
                                     $.each(data, function(id, errors){
                                         $("#"+id).parents(".row").addClass("error");
                                         $.each(errors,function(index,error){
@@ -206,57 +196,13 @@ class JLinesForm extends CWidget{
                                         });
                                     });
                                     send = false;
-                                }else
+                                }else{
+                                    send = true;
                                     $(".row").addClass("success");
+                                }
                                  
                             },
                        });
-                       if(json != null){
-                           $.each(json, function(id,errors){
-                                if(id.split("_")[0] === "JLinesModel" && in_data("'.get_class($this->model).'",json) == false)
-                                     send = true;
-                                else
-                                     send = false;
-                           });
-                       } 
-                       $.ajax({
-                            type:"POST",
-                            url:'.CJavaScript::encode($this->getController()->createUrl('')).',
-                            data: $("#'.$this->form->id.'").serialize()+"&jlines='.$this->form->id.'",
-                            dataType : "json",
-                            success: function(data){
-                                if(data != null){
-                                    $.each(data, function(id, errors){
-                                        $("#"+id).parents(".row").addClass("error");
-                                        $.each(errors,function(index,error){
-                                            $("#"+id+"_em").text(error);
-                                            return false;
-                                        });
-                                        $("#"+id+"_em").show();
-                                        $.each(attributes,function(name,value){
-                                            var attribute = id.split("_")[0]+"_"+id.split("_")[1]+"_"+name
-                                            if(!in_array(attribute,data)){
-                                                $("#"+attribute).parents(".row").addClass("success");
-                                                $("#"+attribute+"_em").hide();
-                                                $("#"+attribute+"_em").text("");
-                                            }
-                                        });
-                                    });
-                                    send = false;
-                                }else
-                                    $(".row").addClass("success");
-                                 
-                            },
-                       });
-                       if(json != null){
-                           $.each(json, function(id,errors){
-                                if(id.split("_")[0] === "JLinesModel" && in_data("'.get_class($this->model).'",json) == false)
-                                     send = true;
-                                else
-                                     send = false;
-                           });
-                       }
-                       
                        return send;
                     }
                     
