@@ -30,7 +30,6 @@ class JLinesModel extends CFormModel{
             foreach($value as $k=>$v){
                 if($v == 'required')
                     unset($this->rules[$key]);
-                
             }
             
         }
