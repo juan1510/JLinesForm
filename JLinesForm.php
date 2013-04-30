@@ -24,7 +24,7 @@ class JLinesForm extends CWidget{
          * @access private
          * @static
          */
-        private static $VALIDTYPES = array('hiddenField','textField','fileField','textArea','uneditable','checkBox','radioButton');
+        private static $VALIDTYPES = array('hiddenField','textField','fileField',/*'textArea',*/'uneditable','checkBox','radioButton');
         /**
          * Tipos validos para los $elementsPreCopy con items
          * @var array
@@ -66,7 +66,7 @@ class JLinesForm extends CWidget{
         /**
          * Modelo para las Lineas
          *
-         * @var CModel $model
+         * @var CActiveRecord $model
          */
         public $model;
         /**
@@ -119,6 +119,11 @@ class JLinesForm extends CWidget{
          * @var boolean $editInline
          */
         public $editInline = true;
+        /**
+         * Atributos en forma $key=>$value para colocar en findByAttributes();
+         * @var arrray $searchAttributes
+         */
+        public $searchAttributes = array();
         
         /**
          * Inicializar Widget
@@ -139,6 +144,10 @@ class JLinesForm extends CWidget{
             $this->_idDelete = 'd_'.$this->getId();
             $this->_idRemove = 'r_'.$this->getId();
             $this->_idEdit = 'e_'.$this->getId();
+            
+            //inicializamos htmlOptions de botones
+            $this->htmlDeleteOptions = array('id'=>$this->_idDelete.'_'.$this->_numLines,'class'=>'delete_'.$this->_idDelete,'name'=>$this->_numLines);
+            $this->htmlUpdateOptions = array('id'=>$this->_idEdit.'_'.$this->_numLines,'class'=>'update_'.$this->_idEdit, 'name'=>$this->_numLines);
             
             $this->registerScripts();
             
@@ -163,6 +172,7 @@ class JLinesForm extends CWidget{
             $js->registerScriptFile($this->_assets .'/js/JLinesForm.js');
             
             $js->registerScript($this->_idAdd,' 
+                //JlinesForm para model '.get_class($this->model).'
                 $(function(){
                     $("#'.$this->_idNew.'").click(function(){
                         $("#'.$this->_idAdd.'").click();
@@ -170,60 +180,183 @@ class JLinesForm extends CWidget{
                     $(".delete_'.$this->_idDelete.'").live("click",function(){
                         $("#'.$this->_idRemove.'_"+$(this).attr("name")).click();
                     });
+                    $(".deleteLine_'.$this->getId().'").live("click",function(){
+                        var idRow = $(this).attr("name");
+                        var model = "'.get_class($this->model).'";
+                        var deleteHidden = $("#'.get_class($this->model).'_delete").val()
+                        var idFieldDelete = $("#'.get_class($this->model).'_"+idRow+"_'.$this->model->tableSchema->primaryKey.'").val();
+
+                        deleteHidden = deleteHidden + idFieldDelete +",";
+                        $("#"+model+"_delete").val(deleteHidden);
+                            
+                        //Reorganizamos los ids y names
+                        var place = $(this).parents(".templateFrame:first").children(".templateTarget");
+                        var countMax = place.find(".rowIndex").max();
+                        var countFor = parseInt(idRow, 10)+1;
+                        var line = parseInt(idRow, 10); 
+                        for(var i = countFor ; i <=countMax; i++){
+                            var fields = '.$this->getFields().';
+                            var elements = '.$this->getElements().';
+                            for(var x =0 ; x<=elements.length;x++){
+                                if(elements[x] == "'.$this->getId().'_rowIndex")
+                                    $("#"+elements[x]+"_"+i).val(line);
+                                $("#"+elements[x]+"_"+i).attr({
+                                    id: elements[x]+"_"+line,
+                                    name: line
+                                });
+                            }
+                                
+                            for(var y =0 ; y<=fields.length;y++){
+                                $("#"+model+"_"+i+"_"+fields[y]).attr({
+                                   id: model+"_"+line+"_"+fields[y],
+                                   name: model+"["+line+"]["+fields[y]+"]"
+                               });
+                           }
+                           line++;
+                        }
+                    });
                 });                
                '
            ,CClientScript::POS_HEAD);
         }
         /**
+         * Metodo para Retornar los elementos alternos a los campos
+         * que se deben cambiar al momento de eliminar una linea
+         */
+        private function getElements(){
+            $elements = array(
+                $this->_idRemove,
+                $this->_idDelete,
+                $this->getId()."_rowIndex",
+            );
+             return CJavaScript::encode($elements);
+            
+        }
+        /**
+         * Metodo para retornar los names de los campos de la base de datos
+         * @return string names de los campos de la base de datos
+         */
+        private function getFields(){
+            $fields = array();
+            foreach($this->model->attributeNames() as $attribute){
+                if(array_key_exists($attribute, $this->elementsCopy))
+                        $fields[]=$attribute;
+            }
+            return CJavaScript::encode($fields);
+        }
+        /**
          * Este metodo se encarga de validacion de las lineas,
          * tanto para el metodo editInlite true o false
-         * @param mixes $modelLineas Puede ser CModel con objeto de un solo modelo o un array con varios (para cuando usa varias veces el widget)
-         * @param string $idForm 
+         * @param mixed $modelLines Puede ser CModel con objeto de un solo modelo o un array con varios (para cuando usa varias veces el widget)
+         * @param string $idForm El id del formulario que esta usando el widget
          * @static
          */
-        public static function validate($modelLineas,$idForm){
+        public static function validate($modelLines,$idForm){
              //array indexado que se escribira en CJSON::encode()
              $json = array();
              // array que tendra los modelos a ser validados
              $models=array();
              //Armamos el array de models para validar
-             if(is_array($modelLineas)){
-                 foreach($modelLineas as $i=>$data){
+             if(is_array($modelLines)){
+                 foreach($modelLines as $data){
                      if(isset($_POST[get_class($data)])){
-                            foreach($_POST[get_class($data)] as $j=>$model)
-                                    $models[$j]=$data;
+                             $models[]=$data;
                      }
                  }
-             }elseif(isset($_POST[get_class($modelLineas)])){
-                   foreach($_POST[get_class($modelLineas)] as $i=>$data)
-                           $models[$i]=$modelLineas;
+             }elseif(isset($_POST[get_class($modelLines)])){
+                           $models[]=$modelLines;
              }
-             //verifica que haya una peticion ajax
+             //verifica que haya una peticion ajax para validar JLinesModel
              if(isset($_POST['ajax']) && $_POST['ajax']===$idForm){
                    if(isset($_POST['JLinesModel'])){
                        // Instanciamos el Model Clonado y asignamos propiedades
                          $JLinesModel = new JLinesModel;
-                         $JLinesModel->rules = $modelLineas->rules();
+                         $JLinesModel->rules = $modelLines->rules();
                        //asignamos lo valores del post al modelo
                        foreach($_POST['JLinesModel'] as $name=>$value)
                             $JLinesModel->$name = $value;
-                       //Escribimos lo errores de validacion en nuestro array $json
-                       foreach(CJSON::decode(CActiveForm::validate($JLinesModel)) as $index=>$value)
-                             $json[$index]=$value;
+                       //Finalmente mostramos los errores de validacion
+                        echo CActiveForm::validate($JLinesModel);
+                        Yii::app()->end();
                    }
-                   //Finalmente mostramos los errores de validacion
-                     echo CJSON::encode($json);
-                     Yii::app()->end();
              }
              if(isset($_POST['jlines']) && $_POST['jlines']===$idForm){
-                 //Escribimos lo errores de validacion en nuestro array $json
-                 foreach(CJSON::decode(CActiveForm::validateTabular($models)) as $index=>$value)
-                     $json[$index]=$value;
                  
-                 echo CJSON::encode($json);
+                 echo CActiveForm::validateTabular($models);
                  Yii::app()->end();
              }
             
+        }
+        /**
+         * Metodo encargado de guardar en los modelos los elementos que vengan por post
+         * @param mixed $modelLines Puede ser CModel con objeto de un solo modelo o un array con varios (para cuando usa varias veces el widget)
+         * @param array $staticValues array indexado para los valores que son siempre los mismos, en caso de maestro detalle o cuando necesito un valor siempre al guardar igual indicar asi:
+         *                            array(
+         *                              get_class($detalle)=>array(
+         *                                  'maestro'=>$maestro->primaryKey
+         *                              ),
+         *                              get_class($tabulares)=>array(
+         *                                  'campo'=>'Estatico'
+         *                              )
+         *                            )
+         * @param array $deleteOptions array indexado en caso de que manejen un borrado logico y se necesite cambiar atributos al eliminar un registro:
+         *                            array(
+         *                              get_class($model)=>array(
+         *                                  'activo'=>'N'
+         *                                  'actualizado_por'=>'admin'
+         *                              ),
+         *                              get_class($model2)=>array(
+         *                                  'activo'=>'N'
+         *                                  'actualizado_por'=>'admin'
+         *                              ),
+         *                            )
+         * @static
+         */
+        public static function save($modelLines,$staticValues = NULL,$deleteOptions = NULL){
+            // array que tendra los modelos a ser guardados
+             $models=array();
+             //Armamos el array de models para guardar
+             if(is_array($modelLines)){
+                 foreach($modelLines as $data)
+                             $models[]=$data;
+             }elseif(isset($_POST[get_class($modelLines)])){
+                           $models[]=$modelLines;
+             }
+             //Ahora guardamos cada modelo
+             foreach($models as $model) {
+                $nameModel = get_class($model);
+                if(isset($_POST[$nameModel])){
+                    foreach($_POST[$nameModel] as $count=>$data){
+                        if(isset($_POST[$nameModel][$count])){
+                            $model = new $nameModel;
+                            if(isset($_POST[$nameModel][$count][$model->tableSchema->primaryKey])){
+                                if($model->findByPk($_POST[$nameModel][$count][$model->tableSchema->primaryKey]))
+                                    $model = $model->findByPk($_POST[$nameModel][$count][$model->tableSchema->primaryKey]);
+                                else
+                                    $model = new $nameModel;
+                            }
+                            $model->attributes=$data;
+                            if(isset($staticValues[$nameModel])){
+                                foreach($staticValues[$nameModel] as $name=>$value)
+                                    $model->$name = $value;
+                            }
+                            $model->save();
+                        }
+                    }
+                }
+                if(isset($_POST[$nameModel.'_delete'])){
+                    $arrayDelete = explode(',',$_POST[$nameModel.'_delete']);
+                    foreach($arrayDelete as $delete){
+                        if(!isset($deleteOptions))
+                            $model->deleteByPk($delete);
+                        else{
+                            $model->updateByPk($delete,$deleteOptions[$nameModel]);
+                        }
+                            
+                    }
+                }
+
+            }
         }
         /*
          * Metodo para retornar el contador
@@ -255,7 +388,6 @@ class JLinesForm extends CWidget{
          * @return TbButton 
          */
         protected  function getButtonUpdateLine($string = false){
-            $this->htmlUpdateOptions = array('id'=>$this->_idEdit.'_'.$this->_numLines,'class'=>'update_'.$this->_idEdit, 'name'=>$this->_numLines);
             return $this->widget('bootstrap.widgets.TbButton', array(
                                   'buttonType'=>'button',
                                   'size'=>'small',
@@ -271,7 +403,6 @@ class JLinesForm extends CWidget{
          * @return TbButton
          */
         protected  function getButtonDeleteLine($string = false){
-            $this->htmlDeleteOptions = array('id'=>$this->_idDelete.'_'.$this->_numLines,'class'=>'delete_'.$this->_idDelete,'name'=>$this->_numLines);
             return $this->widget('bootstrap.widgets.TbButton', array(
                                   'buttonType'=>'button',
                                   'size'=>'small',
@@ -310,35 +441,62 @@ class JLinesForm extends CWidget{
                 echo '<thead>';
                     foreach($this->elementsCopy as $attribute=>$options){
                         if(isset($options['label']))
-                            echo '<th><strong>'.$options['label'].'</strong></th>';
+                            echo '<th><strong>'.CHtml::label($options['label']).'</strong></th>';
                         elseif(!isset($options['isModel']) ||  $options['isModel']==true)
-                            echo '<th><strong>'.$this->form->label($this->model,$attribute).'</strong></th>';
+                            echo '<th><strong>'.$this->form->labelEx($this->model,$attribute).'</strong></th>';
                     }
                     echo '<th></th>';
                 echo '</thead>';
             }
         }
+        /**
+         * Metodo encargado de mostrar los elementos de la base de datos
+         * ya guardados de este modelo y teniendo como opcion el $searchAttributes
+         * para cargar los datos segun la condicion que necesite
+         */
         protected function renderElementsSaved(){
-            
+            $search = $this->model->findAllByAttributes($this->searchAttributes);
+            if(is_array($this->elementsCopy)){
+                foreach($search as $i=>$model){
+                    echo '<tr class="templateContent">';
+                        if(!array_key_exists($this->model->tableSchema->primaryKey, $this->elementsCopy))
+                               echo $this->form->hiddenField($model,"[$i]".$this->model->tableSchema->primaryKey);
+                        $this->_numLines = $i;
+                        foreach($model as $name=>$value){
+                            $this->model->$name = $value;
+                            if(array_key_exists($name, $this->elementsCopy)){
+                                echo '<td style="width: auto">'.$this->createElement($name, $this->elementsCopy[$name]).'</td>';
+                            }
+                        }
+                        $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete.' deleteLine_'.$this->getId();
+                        $this->htmlDeleteOptions['id']=$this->_idDelete.'_'.$this->_numLines;
+                        $this->htmlDeleteOptions['name']=$this->_numLines;
+                        $this->renderAccionButtons();
+                    echo '</tr>';
+               }
+               $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete;
+               $this->_numLines = '{0}';
+               $this->htmlDeleteOptions['id']=$this->_idDelete.'_'.$this->_numLines;
+               $this->htmlDeleteOptions['name']=$this->_numLines;
+               $this->model->unsetAttributes();               
+                
+            }
         }
         /**
          * Metodo para mostrar el contenido del template
          * que se va a tener en cuenta al momento de la clonacion 
          * a causa del botoon (.add)
+         * @access protected
          * 
          */
         protected function renderElementsTemplate(){
             if(is_array($this->elementsCopy)){
-                $countElements = count($this->elementsCopy) -1;
-                $cont =0;
                 
                 //Recorremos los elementos y asignamos valores en caso de vacios
-                foreach($this->elementsCopy as $element=>$options){
+                foreach($this->elementsCopy as $element=>$options)
                      echo '<td style="width: auto">'.$this->createElement($element, $options).'</td>';
-                     if($cont == $countElements)
-                         $this->renderAccionButtons();
-                     $cont++;
-               }
+                
+                $this->renderAccionButtons();
                 
             }
         }
@@ -352,14 +510,14 @@ class JLinesForm extends CWidget{
                 echo '<td style="width: 47px;padding-top: 20px;"> 
                                       <div class="remove" id ="'.$this->_idRemove.'_'.$this->_numLines.'"></div>
                                       <div style="float: left; margin-left: 5px;">'.$this->getButtonDeleteLine(true).'</div>'
-                                      .CHtml::hiddenField("rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
+                                      .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                       .'</td>';
             }else{
                 echo '<td style="width: 77px;padding-top: 20px;">
                             <span style="float: left">'.$this->getButtonUpdateLine(true).'</span>       
                             <div class="remove" id ="'.$this->_idRemove.'_'.$this->_numLines.'"></div>
                             <div style="float: left; margin-left: 5px;">'.$this->getButtonDeleteLine(true).'</div>'
-                            .CHtml::hiddenField("rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
+                            .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                      .'</td>';
             }
         }
@@ -389,7 +547,10 @@ class JLinesForm extends CWidget{
             if($options['isModel'] && isset($options['type'])){
                 $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
                 //Campo para Mostrar error de validacion
-                $error = $render == 'elementTemplate' ? '<div id="'.get_class($this->model).'_'.$this->_numLines.'_'.$element.'_em" class="help-inline error" style="display:none"></div>' : $this->form->error($JLinesModel,$element);
+                if($this->_numLines === '{0}')
+                    $error = $render == 'elementTemplate' ? '<div id="'.get_class($this->model).'_'.$this->_numLines.'_'.$element.'_em" class="help-inline error" style="display:none"></div>' : $this->form->error($JLinesModel,$element);
+                else
+                    $error = $this->form->error($this->model,"[$this->_numLines]".$element);
                 //Validamos el tipo y mostramos
                 if(in_array($options['type'],self::$VALIDTYPES)){
                        $campo = $render == 'elementTemplate' ? $this->form->$options['type']($this->model,"[$this->_numLines]".$element,$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']);
@@ -410,5 +571,3 @@ class JLinesForm extends CWidget{
                     .'</div>';
         }
 }
-
-?>
