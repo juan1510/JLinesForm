@@ -7,11 +7,7 @@
  *
  * Usado de Yii-Playground - Dynamics Row pero mejorado el uso
  * @link http://www.eha.ee/labs/yiiplay/index.php/en/site/extension?view=dynamicrows
- * @example
-   $this->widget('ext.JLinesForm.JLinesForm',array(
-            'model'=>$model,
-            'htmlAddOptions'=>array('id'=>'agregar','disabled'=>true,'style'=>'margin-top: 5px;','tabindex'=>'10')
-    ));
+ * 
  * @author Juan David Rodriguez R. <jdrodrigez429@gmail.com> @juanda1015
  * @copyright 2013 - Juan David Rodriguez Ramirez
  * @license New BSD License
@@ -32,6 +28,23 @@ class JLinesForm extends CWidget{
          * @static
          */
         private static $VALIDTYPESITEMS = array('dropDownList','checkBoxListInline','checkBoxList','radioButtonList');
+        /**
+         * Eventos jQuery validos para los campos
+         * @var array
+         * @access private
+         * @static
+         */
+        private static $VALIDEVENTS = array('change','click','dbclick','focus','blur');
+        /**
+         * Widget validos para los campos
+         * @var array
+         * @access private
+         * @static
+         */
+        private static $VALIDWIDGETS = array(
+                            'zii.widgets.jui.CJuiDatePicker'=>'datepicker',
+                            'zii.widgets.jui.CJuiAutoComplete'=>'autocomplete',
+                        );
         /**
          * Url de la carpeta asstes dentro de extensions
          * @access private
@@ -124,6 +137,17 @@ class JLinesForm extends CWidget{
          * @var arrray $searchAttributes
          */
         public $searchAttributes = array();
+        /**
+         * Attributo para saber si se deben mostrar los elementos guardados en la base de datos 
+         * de este modelo o no
+         * @var boolean  $displayElementsSaved por defecto true
+         */
+        public $displayElementsSaved = true;
+        /**
+         * Attributo para almacenar el codigo js que se debe ejecutar despues que se haga click en el boton nuevo
+         * @var string  $jsAfterCopy
+         */
+        private $jsAfterCopy = '';
         
         /**
          * Inicializar Widget
@@ -133,7 +157,7 @@ class JLinesForm extends CWidget{
                     throw new Exception('Se debe definir la propiedad "form" en la llamada al widget');
             if(!isset($this->model))
                     throw new Exception('Se debe definir la propiedad "model" en la llamada al widget');
-            //Asignamos lod ids correspondientes
+            //Asignamos los ids correspondientes
             if(isset($this->htmlAddOptions['id']))
                  $this->_idNew = $this->htmlAddOptions['id'];
             else{
@@ -148,20 +172,19 @@ class JLinesForm extends CWidget{
             //inicializamos htmlOptions de botones
             $this->htmlDeleteOptions = array('id'=>$this->_idDelete.'_'.$this->_numLines,'class'=>'delete_'.$this->_idDelete,'name'=>$this->_numLines);
             $this->htmlUpdateOptions = array('id'=>$this->_idEdit.'_'.$this->_numLines,'class'=>'update_'.$this->_idEdit, 'name'=>$this->_numLines);
+                        
+            $this->render($this->editInline ? 'lines_edit':'lines');
             
             $this->registerScripts();
-            
-            $this->render($this->editInline ? 'lines_edit':'lines');
             
             parent::init();
         }
         /**
          * Este metodo registrara los js 
          * Nesesarios a usar y algun codigo extra
-         * que se necesite con respecto a los botones
-         * @access private
+         * que se necesite
          */
-        private function registerScripts(){
+        protected function registerScripts(){
             
             $js = Yii::app()->clientScript;
             
@@ -172,25 +195,27 @@ class JLinesForm extends CWidget{
             $js->registerScriptFile($this->_assets .'/js/JLinesForm.js');
             
             $js->registerScript($this->_idAdd,' 
-                //JlinesForm para model '.get_class($this->model).'
+                //JlinesForm para model "'.get_class($this->model).'"
                 $(function(){
-                    $("#'.$this->_idNew.'").click(function(){
-                        $("#'.$this->_idAdd.'").click();
+                    jQuery("#'.$this->_idNew.'").click(function(){
+                        jQuery("#'.$this->_idAdd.'").click();
+                        var place = jQuery(this).parents(".templateFrame:first").children(".templateTarget");
+                        var row = place.find(".rowIndex").max();
+                        '.$this->jsAfterCopy.'
                     });
-                    $(".delete_'.$this->_idDelete.'").live("click",function(){
-                        $("#'.$this->_idRemove.'_"+$(this).attr("name")).click();
-                    });
-                    $(".deleteLine_'.$this->getId().'").live("click",function(){
-                        var idRow = $(this).attr("name");
+                    jQuery(".delete_'.$this->_idDelete.', .deleteLine_'.$this->getId().'").live("click",function(){
+                        var idRow = jQuery(this).attr("name");
                         var model = "'.get_class($this->model).'";
-                        var deleteHidden = $("#'.get_class($this->model).'_delete").val()
-                        var idFieldDelete = $("#'.get_class($this->model).'_"+idRow+"_'.$this->model->tableSchema->primaryKey.'").val();
+                        var deleteHidden = jQuery("#"+model+"_delete").val()
+                        var idFieldDelete = jQuery("#"+model+"_"+idRow+"_'.$this->model->tableSchema->primaryKey.'").val();
 
                         deleteHidden = deleteHidden + idFieldDelete +",";
-                        $("#"+model+"_delete").val(deleteHidden);
-                            
+                        jQuery("#"+model+"_delete").val(deleteHidden);
+
+                        jQuery("#'.$this->_idRemove.'_"+$(this).attr("name")).click();
+
                         //Reorganizamos los ids y names
-                        var place = $(this).parents(".templateFrame:first").children(".templateTarget");
+                        var place = jQuery(this).parents(".templateFrame:first").children(".templateTarget");
                         var countMax = place.find(".rowIndex").max();
                         var countFor = parseInt(idRow, 10)+1;
                         var line = parseInt(idRow, 10); 
@@ -199,15 +224,15 @@ class JLinesForm extends CWidget{
                             var elements = '.$this->getElements().';
                             for(var x =0 ; x<=elements.length;x++){
                                 if(elements[x] == "'.$this->getId().'_rowIndex")
-                                    $("#"+elements[x]+"_"+i).val(line);
-                                $("#"+elements[x]+"_"+i).attr({
+                                    jQuery("#"+elements[x]+"_"+i).val(line);
+                                jQuery("#"+elements[x]+"_"+i).attr({
                                     id: elements[x]+"_"+line,
                                     name: line
                                 });
                             }
                                 
                             for(var y =0 ; y<=fields.length;y++){
-                                $("#"+model+"_"+i+"_"+fields[y]).attr({
+                                jQuery("#"+model+"_"+i+"_"+fields[y]).attr({
                                    id: model+"_"+line+"_"+fields[y],
                                    name: model+"["+line+"]["+fields[y]+"]"
                                });
@@ -215,9 +240,36 @@ class JLinesForm extends CWidget{
                            line++;
                         }
                     });
+                    '.$this->getEvents().'
                 });                
                '
-           ,CClientScript::POS_HEAD);
+           );
+        }
+        /**
+         * Metodo para organizar los eventos jQuery que van a tener los campos
+         * @return string $result
+         */
+        private function getEvents(){
+            $result = '';
+            foreach($this->elementsCopy as $element=>$options){
+                if(isset($options['event'])){
+                    foreach($options['event'] as $event=>$function){
+                        if(in_array($event, self::$VALIDEVENTS)){
+                            $object = strtolower($element).'_'.$this->getId();
+                            $class = isset($options['htmlOptions']['class']) ? $options['htmlOptions']['class'] : $object.'_class';
+                            $result .= '
+                                $(".'.$class.'").live("'.$event.'",function(){
+                                    var '.$object.' = '
+                                        .$function.
+                                    ';
+                                    '.$object.'($(this),$(this).attr("id").split("_")[1]);
+                                 });
+                            ';
+                        }
+                    }
+                }
+            }
+            return $result;
         }
         /**
          * Metodo para Retornar los elementos alternos a los campos
@@ -252,15 +304,13 @@ class JLinesForm extends CWidget{
          * @static
          */
         public static function validate($modelLines,$idForm){
-             //array indexado que se escribira en CJSON::encode()
-             $json = array();
              // array que tendra los modelos a ser validados
              $models=array();
              //Armamos el array de models para validar
              if(is_array($modelLines)){
-                 foreach($modelLines as $data){
-                     if(isset($_POST[get_class($data)])){
-                             $models[]=$data;
+                 foreach($modelLines as $model){
+                     if(isset($_POST[get_class($model)])){
+                             $models[]=$model;
                      }
                  }
              }elseif(isset($_POST[get_class($modelLines)])){
@@ -280,12 +330,45 @@ class JLinesForm extends CWidget{
                         Yii::app()->end();
                    }
              }
-             if(isset($_POST['jlines']) && $_POST['jlines']===$idForm){
-                 
-                 echo CActiveForm::validateTabular($models);
+             if(isset($_POST['jlines']) && $_POST['jlines']===$idForm)
+             {     
+                 echo self::validateTabular($models);
                  Yii::app()->end();
              }
             
+        }
+        /**
+         * Valida un array con instancias del modelo y retorna los resultados en formato JSON.
+         * Basado en CActiveForm::validateTabular();
+         * 
+	 * @param mixed $models array con instacias del modelo o un solo modelo a validar
+         * 
+         * @return string JSON Representando los mensajes de validacion.
+         */
+        public static function validateTabular($models){
+            $result = array();
+            if(!is_array($models))
+		$models=array($models);
+            foreach($models as $i=>$model)
+            {
+                if(isset($_POST[get_class($model)]))
+                {
+                    foreach($_POST[get_class($model)] as $count=>$data)
+                    {
+                        if(is_int($count))
+                        {
+                            $model->attributes=$_POST[get_class($model)][$count];
+                            $model->validate();
+                            foreach($model->getErrors() as $attribute=>$errors)
+                                   $result[CHtml::activeId($model,'['.$count.']'.$attribute)]=$errors;
+
+                            $model->unsetAttributes();
+                        }
+                    }
+                }
+                
+            }
+            return function_exists('json_encode') ? json_encode($result) : CJSON::encode($result);
         }
         /**
          * Metodo encargado de guardar en los modelos los elementos que vengan por post
@@ -449,6 +532,7 @@ class JLinesForm extends CWidget{
                 echo '</thead>';
             }
         }
+        
         /**
          * Metodo encargado de mostrar los elementos de la base de datos
          * ya guardados de este modelo y teniendo como opcion el $searchAttributes
@@ -471,7 +555,7 @@ class JLinesForm extends CWidget{
                         $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete.' deleteLine_'.$this->getId();
                         $this->htmlDeleteOptions['id']=$this->_idDelete.'_'.$this->_numLines;
                         $this->htmlDeleteOptions['name']=$this->_numLines;
-                        $this->renderAccionButtons();
+                        $this->renderActionButtons();
                     echo '</tr>';
                }
                $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete;
@@ -496,8 +580,46 @@ class JLinesForm extends CWidget{
                 foreach($this->elementsCopy as $element=>$options)
                      echo '<td style="width: auto">'.$this->createElement($element, $options).'</td>';
                 
-                $this->renderAccionButtons();
+                $this->renderActionButtons();
                 
+            }
+        }
+        /**
+         * Metodo para retornar las opciones que debe tener un widget sin el index "class"
+         * @param string $element
+         * @param array $options
+         * @return array $options Opciones oficiales del widget
+         */
+        private function getOptionsWidget($element,$options){
+            $optiosWidget = array();
+            foreach($options as $name => $value){
+                if($name !== 'class')
+                    $optiosWidget[$name] = $value;
+            }
+            $optiosWidget['name'] = $element.'_'.$this->getId();
+            return $optiosWidget;
+        }
+        /**
+         * Metodo para construir los widgets que se van a usar posteriormente
+         */
+        protected function renderElementsWidgets(){
+            if(is_array($this->elementsCopy)){
+                
+                //Recorremos los elementos y verificamos cuales tienen el index "class" para su creacion de widget
+                foreach($this->elementsCopy as $element=>$options){
+                    if(isset($options['class']) && array_key_exists($options['class'], self::$VALIDWIDGETS)){
+                        $this->getController()->widget($options['class'],$this->getOptionsWidget($element,$options));
+                        switch(self::$VALIDWIDGETS[$options['class']]){
+                            case 'datepicker':
+                                $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'(jQuery.extend({showMonthAfterYear:false},jQuery.datepicker.regional["'.$options['language'].'"],'.CJavaScript::encode($options['options']).')); ';
+                            break;
+                            default:
+                                $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'(); ';
+                            break;
+                        }
+                    }
+                }
+                                                
             }
         }
         /**
@@ -505,7 +627,7 @@ class JLinesForm extends CWidget{
          * en las acciones de la linea
          * @access private
          */
-        private function renderAccionButtons(){
+        private function renderActionButtons(){
             if($this->editInline){
                 echo '<td style="width: 47px;padding-top: 20px;"> 
                                       <div class="remove" id ="'.$this->_idRemove.'_'.$this->_numLines.'"></div>
@@ -521,6 +643,7 @@ class JLinesForm extends CWidget{
                      .'</td>';
             }
         }
+        
         /**
          * Metodo para crear elemento ya sea del template 
          * de la tabla para el editInline true o para los elemetsPreCopy
@@ -543,8 +666,10 @@ class JLinesForm extends CWidget{
 
             if(!isset($options['items']))
                    $options['items'] = array();
+            if(!isset($options['type']))
+                    $options['type'] = 'textField';
              //Creamos los campos
-            if($options['isModel'] && isset($options['type'])){
+            if($options['isModel']){
                 $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
                 //Campo para Mostrar error de validacion
                 if($this->_numLines === '{0}')
@@ -557,10 +682,10 @@ class JLinesForm extends CWidget{
                 }
                 //Validamos los tipo items
                 if(in_array($options['type'],self::$VALIDTYPESITEMS)){
-                       $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? 'Seleccione' : '--'.$this->model->getAttributeLabel($element).'--';
+                       $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? Yii::t('app','Seleccione') : '--'.$this->model->getAttributeLabel($element).'--';
                        $campo = $render == 'elementTemplate' ?  $this->form->$options['type']($this->model,"[$this->_numLines]".$element,$options['items'],$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['items'],$options['htmlOptions']);
                 }
-            }elseif(isset($options['type']) && in_array($options['type'],self::$VALIDTYPES)){
+            }elseif(in_array($options['type'],self::$VALIDTYPES)){
                 //si no es del modelo para que lo haga con el helper CHtml
                 $campo = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines]"."[$element]",'',$options['htmlOptions']) : CHtml::$options['type']($element,'',$options['htmlOptions']);
             }
