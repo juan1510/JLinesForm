@@ -251,12 +251,35 @@ class JLinesForm extends CWidget{
          */
         private function getEvents(){
             $result = '';
+            $continue = true;
             foreach($this->elementsCopy as $element=>$options){
-                if(isset($options['event'])){
+                foreach($options as $key=>$option){
+                    if(is_int($key)&& is_array($option) && isset($option['event']) && $option['name']){
+                        foreach($option['event'] as $event=>$function){
+                            if(in_array($event, self::$VALIDEVENTS)){
+                                $object = strtolower($option['name']).'_'.$this->getId();
+                                $this->elementsCopy[$element][$key]['htmlOptions']['class'] = isset($option['htmlOptions']['class']) ? $option['htmlOptions']['class'] : $object.'_class';
+                                $class = $this->elementsCopy[$element][$key]['htmlOptions']['class'] ;
+                                $result .= '
+                                    $(".'.$class.'").live("'.$event.'",function(){
+                                        var '.$object.' = '
+                                            .$function.
+                                        ';
+                                        '.$object.'($(this),$(this).attr("id").split("_")[1]);
+                                     });
+                                ';
+                            }else{
+                                $continue = false;
+                            }
+                        }
+                    }
+                }
+                if(isset($options['event']) && $continue){
                     foreach($options['event'] as $event=>$function){
                         if(in_array($event, self::$VALIDEVENTS)){
                             $object = strtolower($element).'_'.$this->getId();
-                            $class = isset($options['htmlOptions']['class']) ? $options['htmlOptions']['class'] : $object.'_class';
+                            $this->elementsCopy[$element]['htmlOptions']['class'] = isset($options['htmlOptions']['class']) ? $options['htmlOptions']['class'] : $object.'_class';
+                            $class = $this->elementsCopy[$element]['htmlOptions']['class'];
                             $result .= '
                                 $(".'.$class.'").live("'.$event.'",function(){
                                     var '.$object.' = '
@@ -652,47 +675,74 @@ class JLinesForm extends CWidget{
          * @param string $element
          * @param array $options
          * @param string $render que funcion la solicita default 'elementTemplate'
-         * @return string $campo
+         * @return string $field
          */
         private function createElement($element,$options, $render = 'elementTemplate'){
-            $campo = '';
-            $error = '';
-            $JLinesModel = $render != 'elementTemplate' ? new JLinesModel : $this->model;
-            if(!isset($options['isModel']))
-                   $options['isModel'] = true;
-
-            if(!isset($options['htmlOptions']))
-                   $options['htmlOptions'] = array();
-
-            if(!isset($options['items']))
-                   $options['items'] = array();
-            if(!isset($options['type']))
-                    $options['type'] = 'textField';
-             //Creamos los campos
-            if($options['isModel']){
-                $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
-                //Campo para Mostrar error de validacion
-                if($this->_numLines === '{0}')
-                    $error = $render == 'elementTemplate' ? '<div id="'.get_class($this->model).'_'.$this->_numLines.'_'.$element.'_em" class="help-inline error" style="display:none"></div>' : $this->form->error($JLinesModel,$element);
-                else
-                    $error = $this->form->error($this->model,"[$this->_numLines]".$element);
-                //Validamos el tipo y mostramos
-                if(in_array($options['type'],self::$VALIDTYPES)){
-                       $campo = $render == 'elementTemplate' ? $this->form->$options['type']($this->model,"[$this->_numLines]".$element,$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']);
+            $continue = false;
+            $response ='';
+            foreach($options as $key=>$option){
+                if(is_int($key)&& is_array($option) && isset($option['name']))
+                        $response.= $this->createElement($option['name'], $option, $render);
+                else{
+                    $continue = true;
+                    break;
                 }
-                //Validamos los tipo items
-                if(in_array($options['type'],self::$VALIDTYPESITEMS)){
-                       $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? Yii::t('app','Seleccione') : '--'.$this->model->getAttributeLabel($element).'--';
-                       $campo = $render == 'elementTemplate' ?  $this->form->$options['type']($this->model,"[$this->_numLines]".$element,$options['items'],$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['items'],$options['htmlOptions']);
-                }
-            }elseif(in_array($options['type'],self::$VALIDTYPES)){
-                //si no es del modelo para que lo haga con el helper CHtml
-                $campo = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines]"."[$element]",'',$options['htmlOptions']) : CHtml::$options['type']($element,'',$options['htmlOptions']);
+                    
             }
-            
-            return '<div class="control-group">'
-                        .$campo
-                        .$error
-                    .'</div>';
+            if($continue){
+                $field = '';
+                $error = '';
+
+                $JLinesModel = new JLinesModel;
+                if(!isset($options['isModel']))
+                       $options['isModel'] = true;
+
+                if(!isset($options['htmlOptions']))
+                       $options['htmlOptions'] = array();
+
+                if(!isset($options['items']))
+                       $options['items'] = array();
+                
+                if(!isset($options['type']))
+                        $options['type'] = 'textField';
+                 //Creamos los campos
+                if($options['isModel']){
+                    $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
+                    //Campo para Mostrar error de validacion
+                    if($this->_numLines === '{0}')
+                        $error = $render == 'elementTemplate' ? '<div id="'.get_class($this->model).'_'.$this->_numLines.'_'.$element.'_em" class="help-inline error" style="display:none"></div>' : $this->form->error($JLinesModel,$element);
+                    else
+                        $error = $this->form->error($this->model,"[$this->_numLines]".$element);
+                    //Validamos el tipo y mostramos
+                    if(in_array($options['type'],self::$VALIDTYPES)){
+                           $field = $render == 'elementTemplate' ? $this->form->$options['type']($this->model,"[$this->_numLines]$element",$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']);
+                    }
+                    //Validamos los tipo items
+                    if(in_array($options['type'],self::$VALIDTYPESITEMS)){
+                        if(!isset($options['htmlOptions']['empty']))
+                           $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? Yii::t('app','Seleccione') : '--'.$this->model->getAttributeLabel($element).'--';
+                        else
+                            $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? $options['htmlOptions']['empty'] : '--'.$this->model->getAttributeLabel($element).'--';
+                        $field = $render == 'elementTemplate' ?  $this->form->$options['type']($this->model,"[$this->_numLines]$element",$options['items'],$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['items'],$options['htmlOptions']);
+                    }
+                }elseif(in_array($options['type'],self::$VALIDTYPES) && !isset($options['name'])){
+                    //si no es del modelo para que lo haga con el helper CHtml
+                    $field = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['htmlOptions']) : CHtml::$options['type']($element,'',$options['htmlOptions']);
+                }elseif(in_array($options['type'],self::$VALIDTYPES))
+                    $field = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines][".$options['name']."]",'',$options['htmlOptions']) : CHtml::$options['type']($options['name'],'',$options['htmlOptions']);
+                elseif(in_array($options['type'],self::$VALIDTYPESITEMS)){
+                    if(!isset($options['htmlOptions']['empty']))
+                       $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? Yii::t('app','Seleccione') : '--'.$this->model->getAttributeLabel($element).'--';
+                    else
+                        $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? $options['htmlOptions']['empty'] : '--'.$this->model->getAttributeLabel($element).'--';
+                    $field = $render == 'elementTemplate' ?  CHtml::$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['items'],$options['htmlOptions']) : CHtml::$options['type'](get_class($JLinesModel)."[$element]",'',$options['items'],$options['htmlOptions']);
+                }
+                        
+                $response .= '<div class="control-group">'
+                            .$field
+                            .$error
+                        .'</div>';
+            }
+            return $response;
         }
 }
