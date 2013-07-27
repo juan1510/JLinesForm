@@ -7,7 +7,7 @@
 <table class="templateFrame table table-bordered table table-hover table table-striped" cellspacing="0">
        <?php $this->renderHeaders();?>
       <tbody class="templateTarget">
-             <?php if($this->displayElementsSaved)$this->renderElementsSaved(); ?>
+             <?php if($this->showElementsSaved)$this->renderElementsSaved(); ?>
              <?php echo CHtml::hiddenField(get_class($this->model).'_delete','' ); ?>
       </tbody>
       <tfoot>
