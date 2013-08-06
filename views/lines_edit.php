@@ -4,7 +4,7 @@
      */
      /* @var $this JLinesForm */
 ?>
-<table class="templateFrame table table-bordered table table-hover table table-striped" cellspacing="0">
+<table class="templateFrame table table-bordered table table-striped" cellspacing="0">
        <?php $this->renderHeaders();?>
       <tbody class="templateTarget">
              <?php if($this->showElementsSaved)$this->renderElementsSaved(); ?>

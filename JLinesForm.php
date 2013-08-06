@@ -382,7 +382,9 @@ class JLinesForm extends CWidget{
                     {
                         if(is_int($count))
                         {
-                            $model->attributes=$_POST[get_class($model)][$count];
+                            foreach($_POST[get_class($model)][$count] as $name=>$value)
+                                $model->$name=$value;
+                            
                             $model->validate();
                             foreach($model->getErrors() as $attribute=>$errors)
                                    $result[CHtml::activeId($model,'['.$count.']'.$attribute)]=$errors;
@@ -444,6 +446,8 @@ class JLinesForm extends CWidget{
                                 else
                                     $model = new $nameModel;
                             }
+                            if(!$data)
+                                continue;
                             
                             foreach($data as $name=>$value)
                                 $model->$name=$value;
