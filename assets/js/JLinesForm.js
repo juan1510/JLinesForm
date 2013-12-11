@@ -65,23 +65,23 @@ jQuery.extend({
                            }
                      },
                 });
-                $.aj
          }
          return send;
 
     } 
 });
+
 $(function(){
 	$(".add").click(function(){
-		var template = jQuery.format(jQuery.trim($(this).siblings(".template").val()));
-		var place = $(this).parents(".templateFrame:first").children(".templateTarget");
-		var i = place.find(".rowIndex").length>0 ? place.find(".rowIndex").max()+1 : 0;
-		$(template(i)).appendTo(place);
+            var template = jQuery.format(jQuery.trim($(this).siblings(".template").val()));
+            var place = $(this).parents(".templateFrame:first").children(".templateTarget");
+            var i = place.find(".rowIndex").length>0 ? place.find(".rowIndex").max()+1 : 0;
+            $(template(i)).appendTo(place);
 	});
         
 	$(".remove").live("click", function() {
-		$(this).parents(".templateContent:first").fadeOut('slow',function(){
-                    $(this).remove();
-                });
+            $(this).parents(".templateContent:first").fadeOut('slow',function(){
+                $(this).remove();
+            });
 	});
 });

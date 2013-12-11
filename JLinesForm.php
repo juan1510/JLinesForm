@@ -1,9 +1,6 @@
 <?php
 /**
- * Widget para Generar Lineas para un formulario de table detalle o para entradas Tabulares
- * Necesitas tener Instalado el bootstrap ya que se usan varios 
- * widgets de esta extension
- * 
+ * Widget para Generar Lineas para un formulario de table detalle o para entradas Tabulares 
  *
  * Usado de Yii-Playground - Dynamics Row pero mejorado el uso
  * @link http://www.eha.ee/labs/yiiplay/index.php/en/site/extension?view=dynamicrows
@@ -46,6 +43,7 @@ class JLinesForm extends CWidget{
                             'zii.widgets.jui.CJuiAutoComplete'=>'autocomplete',
                             'CMaskedTextField'=>'mask',
                             'ext.chosen.Chosen'=>'chosen',
+                            'bootstrap.widgets.TbTypeahead'=>'typeahead',
                         );
         /**
          * Url de la carpeta asstes dentro de extensions
@@ -54,28 +52,18 @@ class JLinesForm extends CWidget{
          */
         private $_assets ;
         /**
-         * Id que contendra la class .add
-         * @var string  $_idAdd
-         */
-        protected $_idAdd;
-        /**
          * Id que contendra el boton de Nuevo
-         * @var string  $_idAdd
+         * @var string  $_idNew
          */
         protected $_idNew;
         /**
          * Id que contendra el boton Eliminar
-         * @var string  $_idAdd
+         * @var string  $_idDelete
          */
         protected $_idDelete;
         /**
-         * Id que contendra la class .remove
-         * @var string  $_idAdd
-         */
-        protected $_idRemove;
-        /**
          * Id que contendra la class .edit
-         * @var string  $_idAdd
+         * @var string  $_idEdit
          */
         protected $_idEdit;
         /**
@@ -150,15 +138,36 @@ class JLinesForm extends CWidget{
          * @var string  $jsAfterCopy
          */
         private $jsAfterCopy = '';
-        
+        /**
+         *Atributo para alamacenar la clase a usar en las tablas
+         * @var string 
+         */
+        public $tableClass = 'table';
+        /**
+         *Atributo para alamacenar la clase a usar en los botones de eliminar
+         * @var string 
+         */
+        public $deleteClass = NULL;
+        /**
+         *Atributo para alamacenar el label que llevara el boton de eliminar
+         * @var string 
+         */
+        public $deleteLabel = NULL;
+        /**
+         * Atributo para almacenar el nombre de la etiqueta par alos botones
+         * @var string 
+         */
+        public $tagButton = 'button';
         /**
          * Inicializar Widget
          */
         public function init() {
             if(!isset($this->form))
-                    throw new Exception('Se debe definir la propiedad "form" en la llamada al widget');
+                    throw new Exception(Yii::t ('app','Se debe definir la propiedad "form" en la llamada al widget'));
             if(!isset($this->model))
-                    throw new Exception('Se debe definir la propiedad "model" en la llamada al widget');
+                    throw new Exception(Yii::t('app','Se debe definir la propiedad "model" en la llamada al widget'));
+             parent::init();
+             
             //Asignamos los ids correspondientes
             if(isset($this->htmlAddOptions['id']))
                  $this->_idNew = $this->htmlAddOptions['id'];
@@ -166,20 +175,32 @@ class JLinesForm extends CWidget{
                 $this->_idNew = 'n'.$this->getId();
                 $this->htmlAddOptions['id'] = $this->_idNew;
             }
-            $this->_idAdd = $this->getId();
             $this->_idDelete = 'd_'.$this->getId();
-            $this->_idRemove = 'r_'.$this->getId();
             $this->_idEdit = 'e_'.$this->getId();
             
             //inicializamos htmlOptions de botones
-            $this->htmlDeleteOptions = array('id'=>$this->_idDelete.'_'.$this->_numLines,'class'=>'delete_'.$this->_idDelete,'name'=>$this->_numLines);
-            $this->htmlUpdateOptions = array('id'=>$this->_idEdit.'_'.$this->_numLines,'class'=>'update_'.$this->_idEdit, 'name'=>$this->_numLines);
+            if(isset($this->htmlAddOptions['class']))
+                $this->htmlAddOptions['class'] .= ' add';
+            else
+                $this->htmlAddOptions['class'] = 'add';
+            
+            if($this->deleteClass != NULL)
+                $this->htmlDeleteOptions['class'] = $this->deleteClass.' remove delete_'.$this->_idDelete;
+            else
+                $this->htmlDeleteOptions['class'] = 'remove delete_'.$this->_idDelete;
+            
+            if(isset($this->htmlUpdateOptions['class']))
+                $this->htmlUpdateOptions['class'] .= ' update_'.$this->_idEdit;
+            else
+                $this->htmlUpdateOptions['class'] = 'update_'.$this->_idEdit;
+            
+            $this->htmlDeleteOptions = array('id'=>$this->_idDelete.'_'.$this->_numLines,'name'=>$this->_numLines);
+            $this->htmlUpdateOptions = array('id'=>$this->_idEdit.'_'.$this->_numLines,'name'=>$this->_numLines);
                         
             $this->render($this->editInline ? 'lines_edit':'lines');
             
             $this->registerScripts();
             
-            parent::init();
         }
         /**
          * Este metodo registrara los js 
@@ -196,11 +217,10 @@ class JLinesForm extends CWidget{
             $js->registerScriptFile($this->_assets .'/js/jquery.format.js');
             $js->registerScriptFile($this->_assets .'/js/JLinesForm.js');
             
-            $js->registerScript($this->_idAdd,' 
+            $js->registerScript($this->getId(),' 
                 //JlinesForm para model "'.get_class($this->model).'"
                 $(function(){
                     jQuery("#'.$this->_idNew.'").click(function(){
-                        jQuery("#'.$this->_idAdd.'").click();
                         var place = jQuery(this).parents(".templateFrame:first").children(".templateTarget");
                         var row = place.find(".rowIndex").max();
                         '.$this->jsAfterCopy.'
@@ -213,8 +233,6 @@ class JLinesForm extends CWidget{
 
                         deleteHidden = deleteHidden + idFieldDelete +",";
                         jQuery("#"+model+"_delete").val(deleteHidden);
-
-                        jQuery("#'.$this->_idRemove.'_"+$(this).attr("name")).click();
 
                         //Reorganizamos los ids y names
                         var place = jQuery(this).parents(".templateFrame:first").children(".templateTarget");
@@ -302,8 +320,8 @@ class JLinesForm extends CWidget{
          */
         private function getElements(){
             $elements = array(
-                $this->_idRemove,
                 $this->_idDelete,
+                $this->_idEdit,
                 $this->getId()."_rowIndex",
             );
              return CJavaScript::encode($elements);
@@ -449,13 +467,13 @@ class JLinesForm extends CWidget{
                             if(!$data)
                                 continue;
                             
-                            foreach($data as $name=>$value)
-                                $model->$name=$value;
-                            
-                            foreach($model->attributes as $name=>$value){
+                            foreach($data as $name=>$value){
                                 if($value == '')
                                     $model->$name = NULL;
+                                else
+                                    $model->$name=$value;
                             }
+                            
                             if(isset($staticValues[$nameModel])){
                                 foreach($staticValues[$nameModel] as $name=>$value)
                                     $model->$name = $value;
@@ -491,47 +509,28 @@ class JLinesForm extends CWidget{
          */
        protected  function getButtonAddLine(){ 
                 
-                return $this->widget('bootstrap.widgets.TbButton', array(
-                                      'buttonType'=>'button',
-                                      'size'=>'normal',
-                                      'type'=>'success',
-                                      'label'=>isset($this->htmlAddOptions['label']) ? $this->htmlAddOptions['label'] : '',
-                                      'icon'=>'plus white',
-                                      'htmlOptions'=>$this->htmlAddOptions,
-                            ),true);
-                
-                
+            return CHtml::tag($this->tagButton,$this->htmlAddOptions,isset($this->htmlAddOptions['label']) ? $this->htmlAddOptions['label'] : Yii::t('app','Nuevo'));
+                               
         }
         /**
          * Metodo para retornar un Boton de Actualizar en Lineas
          * @param string $string si es un string o no
          * @return TbButton 
          */
-        protected  function getButtonUpdateLine($string = false){
-            return $this->widget('bootstrap.widgets.TbButton', array(
-                                  'buttonType'=>'button',
-                                  'size'=>'small',
-                                  'icon'=>'pencil',
-                                  'htmlOptions'=>$this->htmlUpdateOptions,
-                            ),$string);
-                
+        protected  function getButtonUpdateLine(){
             
+            return CHtml::tag($this->tagButton,$this->htmlUpdateOptions,isset($this->htmlUpdateOptions['label']) ? $this->htmlUpdateOptions['label'] : Yii::t('app','Editar'));
+                    
         }
         /**
          * Metodo para retornar un Boton de Eliminar en Lineas
          * @param string $string 
          * @return TbButton
          */
-        protected  function getButtonDeleteLine($string = false){
-            return $this->widget('bootstrap.widgets.TbButton', array(
-                                  'buttonType'=>'button',
-                                  'size'=>'small',
-                                  'type'=>'danger',
-                                  'icon'=>'minus white',
-                                  'htmlOptions'=>$this->htmlDeleteOptions,
-                            ),$string);
-                
+        protected  function getButtonDeleteLine(){
             
+            return CHtml::tag($this->tagButton,$this->htmlDeleteOptions,$this->deleteLabel != NULL ? $this->deleteLabel : Yii::t('app','Eliminar'));
+               
         }
               
         /**
@@ -590,13 +589,22 @@ class JLinesForm extends CWidget{
                             else
                                 echo '<td style="width: auto">'.$this->createElement($element, $options).'</td>';
                         }
-                        $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete.' deleteLine_'.$this->getId();
+                        
+                        if($this->deleteClass != NULL)
+                            $this->htmlDeleteOptions['class'] = $this->deleteClass.' remove delete_'.$this->_idDelete.' deleteLine_'.$this->getId();
+                        else
+                            $this->htmlDeleteOptions['class'] = 'remove delete_'.$this->_idDelete.' deleteLine_'.$this->getId();
+                        
                         $this->htmlDeleteOptions['id']=$this->_idDelete.'_'.$this->_numLines;
                         $this->htmlDeleteOptions['name']=$this->_numLines;
                         $this->renderActionButtons();
                     echo '</tr>';
                }
-               $this->htmlDeleteOptions['class']='delete_'.$this->_idDelete;
+               if($this->deleteClass != NULL)
+                    $this->htmlDeleteOptions['class'] = $this->deleteClass.' remove delete_'.$this->_idDelete;
+               else
+                    $this->htmlDeleteOptions['class'] = 'remove delete_'.$this->_idDelete;
+
                $this->_numLines = '{0}';
                $this->htmlDeleteOptions['id']=$this->_idDelete.'_'.$this->_numLines;
                $this->htmlDeleteOptions['name']=$this->_numLines;
@@ -634,11 +642,13 @@ class JLinesForm extends CWidget{
                 if($name !== 'class' && $name !== 'type')
                     $optiosWidget[$name] = $value;
             }
+            
             if(!isset($options['name']) && $saved){
                 $optiosWidget['model'] = $this->model;
                 $optiosWidget['attribute'] = "[{$this->_numLines}]$element";
             }else
                 $optiosWidget['name'] = $element.'_'.$this->getId();
+                       
             return $optiosWidget;
         }
         /**
@@ -651,12 +661,17 @@ class JLinesForm extends CWidget{
                 foreach($this->elementsCopy as $element=>$options){
                     if(isset($options['class']) && array_key_exists($options['class'], self::$VALIDWIDGETS)){
                         $this->getController()->widget($options['class'],$this->getOptionsWidget($element,$options));
+                        
+                        
                         switch(self::$VALIDWIDGETS[$options['class']]){
                             case 'datepicker':
                                 $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'(jQuery.extend({showMonthAfterYear:false},jQuery.datepicker.regional["'.$options['language'].'"],'.CJavaScript::encode($options['options']).')); ';
                             break;
                             case 'mask':
                                 $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'("'.$options['mask'].'"); ';
+                            break;
+                            case 'typeahead':
+                                $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'('.CJavaScript::encode($options['options']).'); ';
                             break;
                             default:
                                 $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'(); ';
@@ -667,6 +682,7 @@ class JLinesForm extends CWidget{
                                                 
             }
         }
+        
         /**
          * Metodo para mostrar los botones a usar
          * en las acciones de la linea
@@ -674,16 +690,14 @@ class JLinesForm extends CWidget{
          */
         private function renderActionButtons(){
             if($this->editInline){
-                echo '<td style="width: 47px;padding-top: 20px;"> 
-                                      <div class="remove" id ="'.$this->_idRemove.'_'.$this->_numLines.'"></div>
-                                      <div style="float: left; margin-left: 5px;">'.$this->getButtonDeleteLine(true).'</div>'
-                                      .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
+                echo '<td style="width: 160px;">' 
+                            .$this->getButtonDeleteLine()
+                            .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                       .'</td>';
             }else{
-                echo '<td style="width: 77px;padding-top: 20px;">
-                            <span style="float: left">'.$this->getButtonUpdateLine(true).'</span>       
-                            <div class="remove" id ="'.$this->_idRemove.'_'.$this->_numLines.'"></div>
-                            <div style="float: left; margin-left: 5px;">'.$this->getButtonDeleteLine(true).'</div>'
+                echo '<td style="width: 190px;">
+                            <span style="float: left">'.$this->getButtonUpdateLine().'</span>      
+                            <div style="float: left;">'.$this->getButtonDeleteLine().'</div>'
                             .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                      .'</td>';
             }
@@ -701,7 +715,8 @@ class JLinesForm extends CWidget{
          */
         private function createElement($element,$options, $render = 'elementTemplate'){
             $continue = false;
-            $response ='';
+            $response = '';
+            
             foreach($options as $key=>$option){
                 if(is_int($key)&& is_array($option) && isset($option['name']))
                         $response.= $this->createElement($option['name'], $option, $render);
@@ -780,6 +795,7 @@ class JLinesForm extends CWidget{
                             .$error
                         .'</div>';
             }
+            
             return $response;
         }
 }
