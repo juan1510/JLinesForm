@@ -137,7 +137,7 @@ class JLinesForm extends CWidget{
          * Attributo para almacenar el codigo js que se debe ejecutar despues que se haga click en el boton nuevo
          * @var string  $jsAfterCopy
          */
-        private $jsAfterCopy = '';
+        public $jsAfterCopy = '';
         /**
          *Atributo para alamacenar la clase a usar en las tablas
          * @var string 
@@ -159,6 +159,11 @@ class JLinesForm extends CWidget{
          */
         public $tagButton = 'button';
         /**
+         * Atributo para almacenar el nombre de la clase para usar de helper HTML
+         * @var string 
+         */
+        public $helperClass = '';
+        /**
          * Inicializar Widget
          */
         public function init() {
@@ -168,6 +173,9 @@ class JLinesForm extends CWidget{
                     throw new Exception(Yii::t('app','Se debe definir la propiedad "model" en la llamada al widget'));
              parent::init();
              
+             if($this->helperClass == '')
+                 $this->helperClass = new CHtml;
+                          
             //Asignamos los ids correspondientes
             if(isset($this->htmlAddOptions['id']))
                  $this->_idNew = $this->htmlAddOptions['id'];
@@ -384,15 +392,15 @@ class JLinesForm extends CWidget{
          * Valida un array con instancias del modelo y retorna los resultados en formato JSON.
          * Basado en CActiveForm::validateTabular();
          * 
-	 * @param mixed $models array con instacias del modelo o un solo modelo a validar
+     * @param mixed $models array con instacias del modelo o un solo modelo a validar
          * 
          * @return string JSON Representando los mensajes de validacion.
          */
         public static function validateTabular($models){
             $result = array();
             if(!is_array($models))
-		$models=array($models);
-            foreach($models as $i=>$model)
+                $models=array($models);
+            foreach($models as $model)
             {
                 if(isset($_POST[get_class($model)]))
                 {
@@ -400,18 +408,20 @@ class JLinesForm extends CWidget{
                     {
                         if(is_int($count))
                         {
-                            foreach($_POST[get_class($model)][$count] as $name=>$value)
+                            foreach($data as $name=>$value)
                                 $model->$name=$value;
                             
                             $model->validate();
+                            Yii::log('Validando: '.json_encode($model->attributes)."\nErrores: ".json_encode($model->getErrors()));
+                            
                             foreach($model->getErrors() as $attribute=>$errors)
-                                   $result[CHtml::activeId($model,'['.$count.']'.$attribute)]=$errors;
-
-                            $model->unsetAttributes();
+                                $result[CHtml::activeId($model,"[$count]$attribute")] = $errors;
+                            
+                            foreach($data as $name=>$value)
+                                $model->$name='';
                         }
                     }
                 }
-                
             }
             return function_exists('json_encode') ? json_encode($result) : CJSON::encode($result);
         }
@@ -479,6 +489,7 @@ class JLinesForm extends CWidget{
                                     $model->$name = $value;
                             }
                             $model->save();
+                            Yii::log('guardando '.json_encode($model->attributes));
                         }
                     }
                 }
@@ -509,7 +520,7 @@ class JLinesForm extends CWidget{
          */
        protected  function getButtonAddLine(){ 
                 
-            return CHtml::tag($this->tagButton,$this->htmlAddOptions,isset($this->htmlAddOptions['label']) ? $this->htmlAddOptions['label'] : Yii::t('app','Nuevo'));
+            return $this->helperClass->tag($this->tagButton,$this->htmlAddOptions,isset($this->htmlAddOptions['label']) ? $this->htmlAddOptions['label'] : Yii::t('app','Nuevo'));
                                
         }
         /**
@@ -519,7 +530,7 @@ class JLinesForm extends CWidget{
          */
         protected  function getButtonUpdateLine(){
             
-            return CHtml::tag($this->tagButton,$this->htmlUpdateOptions,isset($this->htmlUpdateOptions['label']) ? $this->htmlUpdateOptions['label'] : Yii::t('app','Editar'));
+            return $this->helperClass->tag($this->tagButton,$this->htmlUpdateOptions,isset($this->htmlUpdateOptions['label']) ? $this->htmlUpdateOptions['label'] : Yii::t('app','Editar'));
                     
         }
         /**
@@ -529,7 +540,7 @@ class JLinesForm extends CWidget{
          */
         protected  function getButtonDeleteLine(){
             
-            return CHtml::tag($this->tagButton,$this->htmlDeleteOptions,$this->deleteLabel != NULL ? $this->deleteLabel : Yii::t('app','Eliminar'));
+            return $this->helperClass->tag($this->tagButton,$this->htmlDeleteOptions,$this->deleteLabel != NULL ? $this->deleteLabel : Yii::t('app','Eliminar'));
                
         }
               
@@ -560,7 +571,7 @@ class JLinesForm extends CWidget{
                 echo '<thead>';
                     foreach($this->elementsCopy as $attribute=>$options){
                         if(isset($options['label']))
-                            echo '<th><strong>'.CHtml::label($options['label']).'</strong></th>';
+                            echo '<th><strong>'.$this->helperClass->label($options['label']).'</strong></th>';
                         elseif(!isset($options['isModel']) ||  $options['isModel']==true)
                             echo '<th><strong>'.$this->form->labelEx($this->model,$attribute).'</strong></th>';
                     }
@@ -673,6 +684,9 @@ class JLinesForm extends CWidget{
                             case 'typeahead':
                                 $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'('.CJavaScript::encode($options['options']).'); ';
                             break;
+                            case 'autocomplete':
+                                $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'('.CJavaScript::encode($options['options']).'); ';
+                            break;
                             default:
                                 $this->jsAfterCopy .= 'jQuery("#'.get_class($this->model).'_"+row+"_'.$element.'").'.self::$VALIDWIDGETS[$options['class']].'(); ';
                             break;
@@ -692,13 +706,13 @@ class JLinesForm extends CWidget{
             if($this->editInline){
                 echo '<td style="width: 160px;">' 
                             .$this->getButtonDeleteLine()
-                            .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
+                            .$this->helperClass->hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                       .'</td>';
             }else{
                 echo '<td style="width: 190px;">
                             <span style="float: left">'.$this->getButtonUpdateLine().'</span>      
                             <div style="float: left;">'.$this->getButtonDeleteLine().'</div>'
-                            .CHtml::hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
+                            .$this->helperClass->hiddenField($this->getId()."_rowIndex_$this->_numLines",$this->_numLines,array("class"=>"rowIndex"))
                      .'</td>';
             }
         }
@@ -746,7 +760,7 @@ class JLinesForm extends CWidget{
                 if(!isset($options['type']))
                         $options['type'] = 'textField';
                  //Creamos los campos
-                if($options['isModel'] && !isset($options['class']) && $field == ''){
+                if($options['isModel'] && !isset($options['class'])){
                     $options['htmlOptions']['placeholder'] = $render == 'elementTemplate' ? '' : $this->model->getAttributeLabel($element);
                     //Campo para Mostrar error de validacion
                     if($this->_numLines === '{0}')
@@ -756,7 +770,7 @@ class JLinesForm extends CWidget{
                     //Validamos el tipo y mostramos
                     if(in_array($options['type'],self::$VALIDTYPES)){
                         if($options['type'] === 'checkBox')
-                            $field = $render == 'elementTemplate' ? CHtml::label($this->form->$options['type']($this->model,"[$this->_numLines]$element",$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($this->model)."_{$this->_numLines}_$element", array('class'=>'checkbox')) : CHtml::label($this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($JLinesModel)."_$element", array('class'=>'checkbox'));
+                            $field = $render == 'elementTemplate' ? $this->helperClass->label($this->form->$options['type']($this->model,"[$this->_numLines]$element",$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($this->model)."_{$this->_numLines}_$element", array('class'=>'checkbox')) : $this->helperClass->label($this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($JLinesModel)."_$element", array('class'=>'checkbox'));
                         else
                            $field = $render == 'elementTemplate' ? $this->form->$options['type']($this->model,"[$this->_numLines]$element",$options['htmlOptions']) : $this->form->$options['type']($JLinesModel,$element,$options['htmlOptions']);
                     }
@@ -771,23 +785,22 @@ class JLinesForm extends CWidget{
                 }elseif(in_array($options['type'],self::$VALIDTYPES) && !isset($options['name'])){
                     //si no es del modelo para que lo haga con el helper CHtml
                     if($options['type'] === 'checkBox')
-                        $field = $render == 'elementTemplate' ? CHtml::label(CHtml::$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($this->model)."_{$this->_numLines}_$element", array('class'=>'checkbox')) : CHtml::label(CHtml::$options['type']($element,'',$options['htmlOptions']).$this->model->getAttributeLabel($element), $element, array('class'=>'checkbox'));
+                        $field = $render == 'elementTemplate' ? $this->helperClass->label($this->helperClass->$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['htmlOptions']).$this->model->getAttributeLabel($element), get_class($this->model)."_{$this->_numLines}_$element", array('class'=>'checkbox')) : $this->helperClass->label($this->helperClass->$options['type']($element,'',$options['htmlOptions']).$this->model->getAttributeLabel($element), $element, array('class'=>'checkbox'));
                     else
-                       $field = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['htmlOptions']) : CHtml::$options['type']($element,'',$options['htmlOptions']);
+                       $field = $render == 'elementTemplate' ? $this->helperClass->$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['htmlOptions']) : $this->helperClass->$options['type']($element,'',$options['htmlOptions']);
                     
-                }elseif(in_array($options['type'],self::$VALIDTYPES))
+                }elseif(in_array($options['type'],self::$VALIDTYPES)){
                     if($options['type'] === 'checkBox')
-                        $field = $render == 'elementTemplate' ? CHtml::label(CHtml::$options['type'](get_class($this->model)."[$this->_numLines][".$options['name']."]",'',$options['htmlOptions']).$this->model->getAttributeLabel($options['name']), get_class($this->model)."_{$this->_numLines}_{$options['name']}", array('class'=>'checkbox')) : CHtml::label(CHtml::$options['type']($options['name'],'',$options['htmlOptions']).$this->model->getAttributeLabel($options['name']), $options['name'], array('class'=>'checkbox'));
+                        $field = $render == 'elementTemplate' ? $this->helperClass->label($this->helperClass->$options['type'](get_class($this->model)."[$this->_numLines][".$options['name']."]",'',$options['htmlOptions']).$this->model->getAttributeLabel($options['name']), get_class($this->model)."_{$this->_numLines}_{$options['name']}", array('class'=>'checkbox')) : $this->helperClass->label($this->helperClass->$options['type']($options['name'],'',$options['htmlOptions']).$this->model->getAttributeLabel($options['name']), $options['name'], array('class'=>'checkbox'));
                     else
-                       $field = $render == 'elementTemplate' ? CHtml::$options['type'](get_class($this->model)."[$this->_numLines][".$options['name']."]",'',$options['htmlOptions']) : CHtml::$options['type']($options['name'],'',$options['htmlOptions']);
-
+                       $field = $render == 'elementTemplate' ? $this->helperClass->$options['type'](get_class($this->model)."[$this->_numLines][".$options['name']."]",'',$options['htmlOptions']) : $this->helperClass->$options['type']($options['name'],'',$options['htmlOptions']);
                     
-                elseif(in_array($options['type'],self::$VALIDTYPESITEMS)){
+                }elseif(in_array($options['type'],self::$VALIDTYPESITEMS)){
                     if(!isset($options['htmlOptions']['empty']))
                        $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? Yii::t('app','Seleccione') : '--'.$this->model->getAttributeLabel($element).'--';
                     else
                         $options['htmlOptions']['empty'] = $render == 'elementTemplate' ? $options['htmlOptions']['empty'] : '--'.$this->model->getAttributeLabel($element).'--';
-                    $field = $render == 'elementTemplate' ?  CHtml::$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['items'],$options['htmlOptions']) : CHtml::$options['type'](get_class($JLinesModel)."[$element]",'',$options['items'],$options['htmlOptions']);
+                    $field = $render == 'elementTemplate' ?  $this->helperClass->$options['type'](get_class($this->model)."[$this->_numLines][$element]",'',$options['items'],$options['htmlOptions']) : $this->helperClass->$options['type'](get_class($JLinesModel)."[$element]",'',$options['items'],$options['htmlOptions']);
                 }
                         
                 $response .= '<div class="control-group">'
