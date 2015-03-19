@@ -228,16 +228,25 @@ class JLinesForm extends CWidget{
             $js->registerScript($this->getId(),' 
                 //JlinesForm para model "'.get_class($this->model).'"
                 $(function(){
+
                     jQuery("#'.$this->_idNew.'").click(function(){
-                        var place = jQuery(this).parents(".templateFrame:first").children(".templateTarget");
+                        var template = jQuery.format(jQuery.trim($(this).siblings(".template").val()));
+                        var place = $(this).parents(".templateFrame:first").children(".templateTarget");
+                        var i = place.find(".rowIndex").length>0 ? place.find(".rowIndex").max()+1 : 0;
+                        $(template(i)).appendTo(place);
                         var row = place.find(".rowIndex").max();
                         '.$this->jsAfterCopy.'
                     });
-                    jQuery(".delete_'.$this->_idDelete.', .deleteLine_'.$this->getId().'").live("click",function(){
+
+                    jQuery("body").on("click",".delete_'.$this->_idDelete.', .deleteLine_'.$this->getId().'",function(){
                         var idRow = jQuery(this).attr("name");
                         var model = "'.get_class($this->model).'";
                         var deleteHidden = jQuery("#"+model+"_delete").val()
                         var idFieldDelete = jQuery("#"+model+"_"+idRow+"_'.$this->model->tableSchema->primaryKey.'").val();
+
+                        $(this).parents(".templateContent:first").fadeOut("slow",function(){
+                            $(this).remove();
+                        });
 
                         deleteHidden = deleteHidden + idFieldDelete +",";
                         jQuery("#"+model+"_delete").val(deleteHidden);
@@ -289,7 +298,7 @@ class JLinesForm extends CWidget{
                                 $this->elementsCopy[$element][$key]['htmlOptions']['class'] = isset($option['htmlOptions']['class']) ? $option['htmlOptions']['class'] : $object.'_class';
                                 $class = $this->elementsCopy[$element][$key]['htmlOptions']['class'] ;
                                 $result .= '
-                                    $(".'.$class.'").live("'.$event.'",function(){
+                                    $(".'.$class.'").on("'.$event.'",function(){
                                         var '.$object.' = '
                                             .$function.
                                         ';
@@ -309,7 +318,7 @@ class JLinesForm extends CWidget{
                             $this->elementsCopy[$element]['htmlOptions']['class'] = isset($options['htmlOptions']['class']) ? $options['htmlOptions']['class'] : $object.'_class';
                             $class = $this->elementsCopy[$element]['htmlOptions']['class'];
                             $result .= '
-                                $(".'.$class.'").live("'.$event.'",function(){
+                                $(".'.$class.'").on("'.$event.'",function(){
                                     var '.$object.' = '
                                         .$function.
                                     ';
